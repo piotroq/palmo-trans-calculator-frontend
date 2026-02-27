@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  --palmo-yellow: #FFD700;
+  --palmo-black: #1A1A1A;
+}
+
+body {
+  background-color: var(--palmo-black);
+  color: #ffffff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+a {
+  color: var(--palmo-yellow);
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  transition: all 0.2s ease;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
