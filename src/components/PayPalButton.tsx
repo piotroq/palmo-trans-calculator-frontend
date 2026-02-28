@@ -15,12 +15,29 @@ interface PayPalButtonProps {
 
 export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const isRenderedRef = useRef(false);
   const { formData, resetForm, setLoading } = useCalculatorStore();
 
   useEffect(() => {
+    // Avoid rendering buttons twice
+    if (isRenderedRef.current) {
+      console.log('⚠️ PayPal buttons already rendered, skipping...');
+      return;
+    }
+
     if (!window.paypal) {
       console.error('❌ PayPal SDK not loaded');
       return;
+    }
+
+    if (!containerRef.current) {
+      console.error('❌ Container ref is null');
+      return;
+    }
+
+    // Clear previous buttons
+    if (containerRef.current.innerHTML) {
+      containerRef.current.innerHTML = '';
     }
 
     window.paypal
@@ -108,7 +125,20 @@ export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
           setLoading(false);
         },
       })
-      .render(containerRef.current);
+      .render(containerRef.current)
+      .then(() => {
+        isRenderedRef.current = true;
+        console.log('✅ PayPal buttons rendered successfully');
+      })
+      .catch((error: any) => {
+        console.error('❌ Error rendering PayPal buttons:', error);
+        onError('Błąd wczytywania PayPal');
+      });
+
+    // Cleanup: reset flag on unmount
+    return () => {
+      isRenderedRef.current = false;
+    };
   }, [formData, onSuccess, onError, resetForm, setLoading]);
 
   return (
