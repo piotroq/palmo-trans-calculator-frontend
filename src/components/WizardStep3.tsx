@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
 import { calculateRoute } from '../services/googleMaps';
 import { submitDeliveryRequest } from '../services/api';
+import { PayPalButton } from './PayPalButton';
 
 export const WizardStep3 = () => {
   const {
@@ -15,7 +16,9 @@ export const WizardStep3 = () => {
     setError,
   } = useCalculatorStore();
 
-  // Auto-calculate price on mount
+  const [paymentError, setPaymentError] = useState<string>('');
+  const [showPayPal, setShowPayPal] = useState(false);
+
   useEffect(() => {
     calculatePrice();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -56,8 +59,7 @@ export const WizardStep3 = () => {
     }
   };
 
-  const handleSubmit = async () => {
-    // Walidacja
+  const handlePayNow = () => {
     if (!formData.contactEmail?.trim()) {
       setError('contactEmail', 'Wpisz email');
       return;
@@ -67,25 +69,8 @@ export const WizardStep3 = () => {
       return;
     }
 
-    try {
-      setLoading(true);
-      const response = await submitDeliveryRequest(formData);
-
-      // Sukces!
-      alert(
-        `✅ Zgłoszenie przyjęte!\n\nNumer referencyjny: ${response.referenceNumber}\n\nSprawdzmy wiadomość email.`
-      );
-
-      // Reset formularza
-      resetForm();
-    } catch (error) {
-      setError(
-        'submit',
-        error instanceof Error ? error.message : 'Błąd wysyłania'
-      );
-    } finally {
-      setLoading(false);
-    }
+    setPaymentError('');
+    setShowPayPal(true);
   };
 
   const distanceKm = formData.estimatedDistance
@@ -102,7 +87,6 @@ export const WizardStep3 = () => {
         <p className="text-gray-400">Przejrzyj szczegóły i wyślij zgłoszenie</p>
       </div>
 
-      {/* Summary Box */}
       <div className="bg-gray-800 rounded-lg p-6 space-y-4">
         <h3 className="text-xl font-bold mb-4">Szczegóły Przesyłki</h3>
 
@@ -160,106 +144,141 @@ export const WizardStep3 = () => {
         </div>
       </div>
 
-      {/* Contact Information */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-bold">Twoje Dane Kontaktowe</h3>
+      {!showPayPal && (
+        <>
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold">Twoje Dane Kontaktowe</h3>
 
-        <div>
-          <label htmlFor="email" className="block text-sm font-semibold mb-2">
-            Email <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="email"
-            type="email"
-            placeholder="twoj@email.com"
-            value={formData.contactEmail || ''}
-            onChange={(e) => {
-              updateFormData({ contactEmail: e.target.value });
-              setError('contactEmail', '');
-            }}
+            <div>
+              <label htmlFor="email" className="block text-sm font-semibold mb-2">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder="twoj@email.com"
+                value={formData.contactEmail || ''}
+                onChange={(e) => {
+                  updateFormData({ contactEmail: e.target.value });
+                  setError('contactEmail', '');
+                }}
+                className={`
+                  w-full px-4 py-3 rounded-lg
+                  bg-gray-800 text-white border-2
+                  focus:outline-none focus:border-yellow-400
+                  ${errors.contactEmail ? 'border-red-500' : 'border-gray-700'}
+                `}
+              />
+              {errors.contactEmail && (
+                <p className="text-xs text-red-500 mt-1">❌ {errors.contactEmail}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="block text-sm font-semibold mb-2">
+                Telefon <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                placeholder="+48 123 456 789"
+                value={formData.contactPhone || ''}
+                onChange={(e) => {
+                  updateFormData({ contactPhone: e.target.value });
+                  setError('contactPhone', '');
+                }}
+                className={`
+                  w-full px-4 py-3 rounded-lg
+                  bg-gray-800 text-white border-2
+                  focus:outline-none focus:border-yellow-400
+                  ${errors.contactPhone ? 'border-red-500' : 'border-gray-700'}
+                `}
+              />
+              {errors.contactPhone && (
+                <p className="text-xs text-red-500 mt-1">❌ {errors.contactPhone}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="notes" className="block text-sm font-semibold mb-2">
+                Notatki (opcjonalnie)
+              </label>
+              <textarea
+                id="notes"
+                placeholder="Dodatkowe informacje o przesyłce..."
+                value={formData.notes || ''}
+                onChange={(e) => updateFormData({ notes: e.target.value })}
+                rows={3}
+                className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-yellow-400"
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handlePayNow}
+            disabled={isLoading}
             className={`
-              w-full px-4 py-3 rounded-lg
-              bg-gray-800 text-white border-2
-              focus:outline-none focus:border-yellow-400
-              ${errors.contactEmail ? 'border-red-500' : 'border-gray-700'}
+              w-full py-4 px-4 rounded-lg font-bold text-lg
+              transition-all duration-200
+              focus:outline-none focus:ring-2 focus:ring-yellow-400
+              ${
+                isLoading
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95'
+              }
             `}
-          />
-          {errors.contactEmail && (
-            <p className="text-xs text-red-500 mt-1">❌ {errors.contactEmail}</p>
-          )}
-        </div>
+          >
+            {isLoading ? '⏳ Przetwarzanie...' : '💳 Przejdź do płatności'}
+          </button>
+        </>
+      )}
 
-        <div>
-          <label htmlFor="phone" className="block text-sm font-semibold mb-2">
-            Telefon <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="phone"
-            type="tel"
-            placeholder="+48 123 456 789"
-            value={formData.contactPhone || ''}
-            onChange={(e) => {
-              updateFormData({ contactPhone: e.target.value });
-              setError('contactPhone', '');
+      {showPayPal && (
+        <div className="bg-blue-900 bg-opacity-30 border border-blue-500 rounded-lg p-6">
+          <h3 className="text-lg font-bold mb-4">Potwierdzenie Płatności</h3>
+          
+          {paymentError && (
+            <div className="bg-red-900 bg-opacity-30 border border-red-500 rounded-lg p-4 mb-4">
+              <p className="text-red-300">❌ {paymentError}</p>
+            </div>
+          )}
+
+          <PayPalButton
+            onSuccess={() => {
+              console.log('✅ Payment successful!');
+              setShowPayPal(false);
             }}
-            className={`
-              w-full px-4 py-3 rounded-lg
-              bg-gray-800 text-white border-2
-              focus:outline-none focus:border-yellow-400
-              ${errors.contactPhone ? 'border-red-500' : 'border-gray-700'}
-            `}
+            onError={(error: string) => {
+              console.error('❌ Payment error:', error);
+              setPaymentError(error);
+            }}
           />
-          {errors.contactPhone && (
-            <p className="text-xs text-red-500 mt-1">❌ {errors.contactPhone}</p>
-          )}
+
+          <button
+            onClick={() => setShowPayPal(false)}
+            className="w-full mt-4 py-2 px-4 rounded-lg font-semibold
+              bg-gray-700 hover:bg-gray-600 text-white
+              transition-colors duration-200"
+          >
+            ← Wróć do formularza
+          </button>
         </div>
+      )}
 
-        <div>
-          <label htmlFor="notes" className="block text-sm font-semibold mb-2">
-            Notatki (opcjonalnie)
-          </label>
-          <textarea
-            id="notes"
-            placeholder="Dodatkowe informacje o przesyłce..."
-            value={formData.notes || ''}
-            onChange={(e) => updateFormData({ notes: e.target.value })}
-            rows={3}
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-yellow-400"
-          />
+      {!showPayPal && (
+        <div className="flex gap-3">
+          <button
+            onClick={() => setStep(2)}
+            disabled={isLoading}
+            className="flex-1 py-3 px-4 rounded-lg font-bold
+              bg-gray-700 hover:bg-gray-600 text-white
+              transition-colors duration-200
+              disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            ← Wstecz
+          </button>
         </div>
-      </div>
-
-      {/* Payment Button */}
-      <button
-        onClick={handleSubmit}
-        disabled={isLoading}
-        className={`
-          w-full py-4 px-4 rounded-lg font-bold text-lg
-          transition-all duration-200
-          focus:outline-none focus:ring-2 focus:ring-yellow-400
-          ${
-            isLoading
-              ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95'
-          }
-        `}
-      >
-        {isLoading ? '⏳ Przetwarzanie...' : '💳 Wyślij Zgłoszenie'}
-      </button>
-
-      {/* Navigation */}
-      <div className="flex gap-3">
-        <button
-          onClick={() => setStep(2)}
-          disabled={isLoading}
-          className="flex-1 py-3 px-4 rounded-lg font-bold
-            bg-gray-700 hover:bg-gray-600 text-white
-            transition-colors duration-200
-            disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          ← Wstecz
-        </button>
-      </div>
+      )}
     </div>
   );
 };

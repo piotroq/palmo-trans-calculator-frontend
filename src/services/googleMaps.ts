@@ -1,10 +1,8 @@
 import type { Coordinates, RouteInfo } from '../types/index';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+const API_URL = import.meta.env.VITE_API_URL;
 
-/**
- * Oblicza trasę przy użyciu Google Maps Distance Matrix API
- */
 export async function calculateRoute(
   pickupCoords: Coordinates,
   deliveryCoords: Coordinates,
@@ -64,32 +62,25 @@ export async function calculateRoute(
 }
 
 /**
- * Geocodowanie (adres → koordynaty)
+ * Geocodowanie przez backend (unika CORS)
  */
 export async function geocodeAddress(address: string): Promise<Coordinates> {
   try {
-    const response = await fetch(
-      'https://maps.googleapis.com/maps/api/geocode/json',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address,
-          key: GOOGLE_MAPS_API_KEY,
-        }),
-      }
-    );
+    const response = await fetch(`${API_URL}/api/geocode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address }),
+    });
 
-    const data = await response.json();
-
-    if (data.status !== 'OK' || !data.results?.[0]) {
-      throw new Error('Adres nie znaleziony.');
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Adres nie znaleziony');
     }
 
-    const location = data.results[0].geometry.location;
+    const data = await response.json();
     return {
-      lat: location.lat,
-      lng: location.lng,
+      lat: data.lat,
+      lng: data.lng,
     };
   } catch (error) {
     console.error('Geocoding error:', error);
