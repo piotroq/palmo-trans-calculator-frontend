@@ -1,5 +1,9 @@
 /**
- * WizardLayout v3 — Steps 1-4 aktywne, 5-6 placeholder
+ * WizardLayout FINAL — Wszystkie 6 kroków aktywne
+ *
+ * Step 1: pełna szerokość
+ * Steps 2-5: content + Übersicht sidebar
+ * Step 6: content (review) + PaymentPanel sidebar
  */
 
 import { useCalculatorStoreV2 } from '../../store/calculatorStoreV2';
@@ -8,6 +12,8 @@ import { StepPreis } from './steps/StepPreis';
 import { StepSendung } from './steps/StepSendung';
 import { StepAbholung } from './steps/StepAbholung';
 import { StepZustellung } from './steps/StepZustellung';
+import { StepRechnung } from './steps/StepRechnung';
+import { StepZahlung, PaymentPanel } from './steps/StepZahlung';
 import { WizardSidebar } from './WizardSidebar';
 
 export const WizardLayout = () => {
@@ -50,24 +56,17 @@ export const WizardLayout = () => {
             {WIZARD_STEPS.map(({ step }) => {
               const s = step as 1|2|3|4|5|6;
               return (
-                <div
-                  key={step}
-                  className={`
-                    flex-1 h-1.5 rounded-full transition-all duration-300
-                    ${currentStep === s ? 'bg-yellow-400'
-                      : completedSteps.has(s) ? 'bg-green-500'
-                      : 'bg-gray-700'}
-                  `}
-                />
+                <div key={step} className={`
+                  flex-1 h-1.5 rounded-full transition-all duration-300
+                  ${currentStep === s ? 'bg-yellow-400' : completedSteps.has(s) ? 'bg-green-500' : 'bg-gray-700'}
+                `} />
               );
             })}
           </div>
 
           <p className="md:hidden text-center text-xs text-gray-500 mt-2">
             Schritt {currentStep} von 6:{' '}
-            <span className="text-yellow-400 font-semibold">
-              {WIZARD_STEPS[currentStep - 1].labelDE}
-            </span>
+            <span className="text-yellow-400 font-semibold">{WIZARD_STEPS[currentStep - 1].labelDE}</span>
           </p>
         </div>
 
@@ -78,7 +77,7 @@ export const WizardLayout = () => {
               <StepContent step={currentStep} />
             </div>
             <div className="hidden lg:block">
-              <WizardSidebar />
+              {currentStep === 6 ? <PaymentPanel /> : <WizardSidebar />}
             </div>
           </div>
         ) : (
@@ -103,15 +102,8 @@ const StepContent = ({ step }: { step: number }) => {
     case 2: return <StepSendung />;
     case 3: return <StepAbholung />;
     case 4: return <StepZustellung />;
-    case 5: return <PlaceholderStep name="Rechnungsadresse" />;
-    case 6: return <PlaceholderStep name="Zahlung" />;
+    case 5: return <StepRechnung />;
+    case 6: return <StepZahlung />;
     default: return null;
   }
 };
-
-const PlaceholderStep = ({ name }: { name: string }) => (
-  <div className="text-center py-20">
-    <p className="text-2xl font-bold text-gray-500">{name}</p>
-    <p className="text-gray-600 mt-2">Wird in der nächsten Phase implementiert</p>
-  </div>
-);
