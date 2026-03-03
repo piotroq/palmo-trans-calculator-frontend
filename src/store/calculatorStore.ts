@@ -29,6 +29,7 @@ export const useCalculatorStore = create<CalculatorStore>((set) => ({
     errors: { ...state.errors, [field]: message },
   })),
   clearError: (field) => set((state) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { [field]: _, ...rest } = state.errors;
     return { errors: rest };
   }),

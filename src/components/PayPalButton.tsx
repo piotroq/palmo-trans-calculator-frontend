@@ -4,7 +4,7 @@ import { submitDeliveryRequest } from '../services/api';
 
 declare global {
   interface Window {
-    paypal: any;
+    paypal: unknown;
   }
 }
 
@@ -13,10 +13,20 @@ interface PayPalButtonProps {
   onError: (error: string) => void;
 }
 
+interface PayPalActions {
+  order: {
+    create: (data: unknown) => Promise<string>;
+  };
+}
+
+interface PayPalCallbackData {
+  orderID: string;
+}
+
 export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isRenderedRef = useRef(false);
-  const { formData, resetForm, setLoading } = useCalculatorStore();
+  const { formData, setLoading } = useCalculatorStore();
 
   useEffect(() => {
     // Avoid rendering buttons twice
@@ -40,12 +50,22 @@ export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
       containerRef.current.innerHTML = '';
     }
 
-    window.paypal
+    const paypal = window.paypal as {
+      Buttons: (options: {
+        createOrder: (data: unknown, actions: PayPalActions) => Promise<string>;
+        onApprove: (data: PayPalCallbackData, actions: PayPalActions) => Promise<void>;
+        onError: (error: Error) => void;
+      }) => {
+        render: (container: HTMLDivElement) => Promise<void>;
+      };
+    };
+
+    paypal
       .Buttons({
-        createOrder: async (data: any, actions: any) => {
+        createOrder: async () => {
           try {
             setLoading(true);
-            
+
             console.log('📝 Wysyłam zgłoszenie do backendu...');
             const response = await submitDeliveryRequest(formData);
             console.log('✅ Zgłoszenie wysłane:', response);
@@ -70,7 +90,7 @@ export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
 
             const orderData = await apiResponse.json();
             console.log('💳 PayPal order created:', orderData.orderId);
-            
+
             setLoading(false);
             return orderData.orderId;
           } catch (error) {
@@ -82,11 +102,11 @@ export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
           }
         },
 
-        onApprove: async (data: any, actions: any) => {
+        onApprove: async (data: PayPalCallbackData) => {
           try {
             setLoading(true);
             console.log('✅ PayPal approved, capturing payment...');
-            
+
             const captureResponse = await fetch(
               `${import.meta.env.VITE_API_URL}/api/payments/capture`,
               {
@@ -102,12 +122,11 @@ export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
 
             const captureData = await captureResponse.json();
             console.log('✅ Płatność potwierdzona!', captureData);
-            
+
             alert(
               `✅ Płatność potwierdzona!\n\nNumer referencyjny: ${captureData.submission?.referenceNumber || 'Przetwarzanie...'}\n\nSprawdź email.`
             );
 
-            resetForm();
             onSuccess();
             setLoading(false);
           } catch (error) {
@@ -118,7 +137,7 @@ export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
           }
         },
 
-        onError: (error: any) => {
+        onError: (error: Error) => {
           const errorMsg = `Błąd PayPal: ${error.message}`;
           console.error('❌ PayPal error:', errorMsg);
           onError(errorMsg);
@@ -130,8 +149,8 @@ export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
         isRenderedRef.current = true;
         console.log('✅ PayPal buttons rendered successfully');
       })
-      .catch((error: any) => {
-        console.error('❌ Error rendering PayPal buttons:', error);
+      .catch((_error: unknown) => {
+        console.error('❌ Error rendering PayPal buttons:', _error);
         onError('Błąd wczytywania PayPal');
       });
 
@@ -139,7 +158,7 @@ export const PayPalButton = ({ onSuccess, onError }: PayPalButtonProps) => {
     return () => {
       isRenderedRef.current = false;
     };
-  }, [formData, onSuccess, onError, resetForm, setLoading]);
+  }, [formData, onSuccess, onError, setLoading]);
 
   return (
     <div 

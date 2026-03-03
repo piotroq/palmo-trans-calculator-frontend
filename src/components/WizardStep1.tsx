@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
 import { geocodeAddress } from '../services/googleMaps';
-import type { Coordinates } from '../types/index';
 
 export const WizardStep1 = () => {
   const {
@@ -11,7 +10,6 @@ export const WizardStep1 = () => {
     clearError,
     errors,
     setStep,
-    setLoading,
     isLoading,
   } = useCalculatorStore();
 

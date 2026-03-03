@@ -137,7 +137,9 @@ export const WizardStep2 = () => {
                 onChange={(e) =>
                   updateFormData({
                     additionalServices: {
-                      ...formData.additionalServices,
+                      insurance: formData.additionalServices?.insurance || false,
+                      signatureRequired: formData.additionalServices?.signatureRequired || false,
+                      timeSlot: formData.additionalServices?.timeSlot || false,
                       [service.id]: e.target.checked,
                     },
                   })

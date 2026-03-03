@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
 import { calculateRoute } from '../services/googleMaps';
-import { submitDeliveryRequest } from '../services/api';
 import { PayPalButton } from './PayPalButton';
 
 export const WizardStep3 = () => {
@@ -11,7 +10,6 @@ export const WizardStep3 = () => {
     setStep,
     setLoading,
     isLoading,
-    resetForm,
     errors,
     setError,
   } = useCalculatorStore();
