@@ -2,67 +2,92 @@
 
 ## Project Overview
 
-A **React 19 + TypeScript + Vite** web application for PALMO-TRANS GmbH, providing an interactive delivery cost calculator with a multi-step wizard interface. The application allows customers to:
+A **React 19 + TypeScript + Vite** web application for PALMO-TRANS GmbH, providing an interactive delivery cost calculator with a multi-step wizard interface.
 
-1. Enter pickup and delivery addresses (with Google Maps geocoding)
-2. Specify package weight and service type (Standard/Express)
-3. Review pricing and submit delivery requests with PayPal payment integration
+### Current Version: **v2 (6-Step Wizard)**
+
+The application is being expanded from a 3-step wizard to a comprehensive 6-step wizard inspired by Zipmend Express:
+
+1. **Preis** — Addresses, vehicle selection, additional services, date, price calculation
+2. **Sendung** — Shipment category, dimensions, weight, quantity, stackable
+3. **Abholung** — Pickup address details, time window
+4. **Zustellung** — Delivery address details, time window
+5. **Rechnungsadresse** — Invoice data, VAT ID
+6. **Zahlung** — Summary + payment method selection
 
 ### Tech Stack
 
 | Category | Technology |
 |----------|------------|
 | **Framework** | React 19.2.0 |
-| **Language** | TypeScript 5.9 |
+| **Language** | TypeScript 5.9 (strict mode) |
 | **Build Tool** | Vite 7.3.1 |
-| **Styling** | Tailwind CSS 4.2.1 |
-| **State Management** | Zustand 5.0.11 |
-| **Routing** | React Router DOM 7.13.1 |
+| **Styling** | Tailwind CSS 4.2.1 (utility-first) |
+| **State Management** | Zustand 5.0.11 (sliced store) |
 | **HTTP Client** | Axios 1.13.5 |
-| **Maps** | Google Maps API (@react-google-maps/api) |
-| **Payments** | PayPal Checkout SDK |
+| **Testing** | Vitest 4.0.18, Playwright 1.58.2 |
 
 ### Architecture
 
 ```
 src/
-├── components/       # Reusable UI components
-│   ├── WizardStep1.tsx    # Address input (geocoding)
-│   ├── WizardStep2.tsx    # Weight & service selection
-│   ├── WizardStep3.tsx    # Summary & payment
-│   └── PayPalButton.tsx   # PayPal integration
-├── services/         # API & external service clients
-│   ├── api.ts             # Backend REST API client
-│   └── googleMaps.ts      # Google Maps geocoding & routing
-├── store/            # Zustand state management
-│   └── calculatorStore.ts # Central form state
-├── types/            # TypeScript type definitions
-│   └── index.ts           # Shared interfaces
-├── hooks/            # Custom React hooks
-├── pages/            # Page components (empty)
-└── styles/           # Global styles
+├── AppV2.tsx                     # Entry point for v2 wizard
+├── types/
+│   └── calculator.ts             # TypeScript types for 6-step wizard
+├── store/
+│   ├── calculatorStoreV2.ts      # Zustand store v2 (6 slices)
+│   └── calculatorStore.ts        # Legacy store v1 (backup)
+├── services/
+│   ├── apiV2.ts                  # Backend REST API v2 client
+│   ├── api.ts                    # Legacy API v1 client
+│   └── googleMaps.ts             # Google Maps utilities
+├── components/
+│   ├── wizard/
+│   │   ├── WizardLayout.tsx      # Main layout + step indicator
+│   │   └── steps/
+│   │       ├── StepPreis.tsx     # Step 1: Price calculation (DONE)
+│   │       └── (Step2-6 TODO)    # Steps 2-6 (placeholders)
+│   ├── address/
+│   │   └── AddressInput.tsx      # Address input with geocoding
+│   ├── vehicles/
+│   │   ├── vehicleData.ts        # Vehicle configurations (frontend cache)
+│   │   ├── VehicleCategoryToggle.tsx  # Express/LKW switch
+│   │   ├── VehicleSelector.tsx   # Vehicle list with expand
+│   │   ├── VehicleCardExpanded.tsx   # Expanded vehicle card
+│   │   └── VehicleCardCompact.tsx    # Compact vehicle row
+│   ├── services/
+│   │   └── AdditionalServicesPanel.tsx  # Additional services checkboxes
+│   ├── scheduling/
+│   │   ├── DateSelector.tsx      # Date picker
+│   │   └── TimeWindowPreview.tsx # Time window preview
+│   ├── ui/
+│   │   ├── PriceSummary.tsx      # Price summary display
+│   │   └── StepNavigation.tsx    # Next/Back navigation
+│   └── (legacy/)                 # Legacy v1 components (WizardStep1/2/3)
+├── __tests__/                    # Unit tests (Vitest)
+└── styles/                       # Global styles
 ```
 
 ## Building and Running
 
 ### Prerequisites
 
-- Node.js (version compatible with the project)
+- Node.js (compatible version)
 - npm
 
 ### Environment Setup
 
-1. Copy `.env.example` to `.env`:
+1. Create `.env` file:
    ```bash
    cp .env.example .env
    ```
 
-2. Configure environment variables in `.env`:
+2. Configure environment variables:
    ```env
    VITE_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
    VITE_API_URL=http://localhost:5000
    VITE_APP_ENV=development
-   VITE_PAYPAL_CLIENT_ID=your_paypal_client_id  # Required for PayPal
+   VITE_PAYPAL_CLIENT_ID=your_paypal_client_id
    ```
 
 ### Development
@@ -71,7 +96,7 @@ src/
 npm run dev
 ```
 
-Starts the Vite development server with hot module replacement (HMR).
+Starts Vite dev server on port 5173 with HMR.
 
 ### Production Build
 
@@ -79,12 +104,16 @@ Starts the Vite development server with hot module replacement (HMR).
 npm run build
 ```
 
-Compiles TypeScript and bundles the application for production.
-
 ### Preview Production Build
 
 ```bash
 npm run preview
+```
+
+### Run Tests
+
+```bash
+npm run test
 ```
 
 ### Linting
@@ -93,96 +122,277 @@ npm run preview
 npm run lint
 ```
 
-Runs ESLint on the codebase.
-
 ## Development Conventions
 
 ### Code Style
 
-- **TypeScript**: Strict typing with interfaces defined in `src/types/index.ts`
-- **Component Structure**: Functional components with hooks
-- **Styling**: Tailwind CSS utility classes with custom theme colors (`palmo-yellow`, `palmo-black`)
-- **State Management**: Zustand store pattern for global form state
+- **TypeScript**: Strict mode, no `any` types
+- **Components**: Functional components with hooks only
+- **Styling**: Tailwind CSS utility classes (NO CSS modules)
+- **State**: Always via Zustand store, NO prop drilling
+- **API**: Always via `services/apiV2.ts`, NO direct fetch
+- **Validation**: Per-step before navigation, error messages in German
+- **Responsiveness**: Mobile-first, grid collapse on < md
+- **Animations**: `transition-all duration-200` on interactive elements
+- **Comments**: Polish language, variable names: English
 
-### Key Patterns
+### Store Pattern (Zustand v2)
 
-1. **Multi-step Wizard**: Three-step form with progress indicators managed by `currentStep` in Zustand store
-2. **Geocoding on Blur**: Addresses are validated via backend geocoding endpoint when input fields lose focus
-3. **Dynamic Pricing**: Cost calculation based on distance, weight tiers, service type, and additional services
-4. **Payment Flow**: Submission created first, then PayPal payment processed via backend API
+The v2 store uses a sliced architecture with dedicated actions per step:
 
-### Type Definitions
+```typescript
+// Navigation
+setStep(step)          // Go to step
+goNext()               // Next step + mark completed
+goBack()               // Previous step
+canNavigateTo(step)    // Check if navigation allowed
 
-Core types in `src/types/index.ts`:
-- `Coordinates` - Lat/lng pairs
-- `DeliveryRequest` - Full form data structure
-- `PricingConfig` - Base fee, per-km rate, weight multipliers
-- `RouteInfo` - Distance, duration, cost from Google Maps
+// Step 1: Preis
+setVehicleCategory('express' | 'lkw')
+setVehicle('EXP-01')
+toggleService('SVC-01')
+setPickupAddress(addr, coords?)
+setDeliveryAddress(addr, coords?)
 
-### API Integration
+// Step 2: Sendung
+addPackage(pkg)
+updatePackage(id, data)
+removePackage(id)
 
-Backend API endpoints (configured via `VITE_API_URL`):
-- `POST /api/submissions` - Create delivery request
-- `POST /api/geocode` - Geocode address (CORS workaround)
-- `POST /api/payments/create-order` - Create PayPal order
-- `POST /api/payments/capture` - Capture PayPal payment
+// Steps 3-4: Addresses
+updatePickupAddress(data)
+updatePickupSchedule(data)
 
-### UI Theme
+// Step 5: Invoice
+updateInvoice(data)
+copyAddressToInvoice('pickup' | 'delivery')
 
-Dark theme with yellow accents:
-- Background: `#1A1A1A` (palmo-black)
-- Cards: `#1F2937`
-- Primary action: Yellow `#FFD700` (palmo-yellow)
-- Text: White with gray variants for secondary text
+// Step 6: Payment
+setPaymentMethod('rechnung' | 'przelewy24' | 'paypal' | 'kreditkarte')
+```
+
+### API Endpoints (Backend v2)
+
+```
+GET  /api/v2/vehicles(?category=express|lkw)
+GET  /api/v2/services(?category=express|lkw)
+GET  /api/v2/time-windows
+GET  /api/v2/timeslots/:date
+GET  /api/v2/shipment-categories
+GET  /api/v2/payment-methods
+POST /api/v2/quick-quote     — {vehicleId, distanceKm, serviceIds?}
+POST /api/v2/calculate       — Full price calculation
+POST /api/v2/booking         — Create booking
+POST /api/geocode            — Geocoding (legacy endpoint)
+```
+
+### Branding (PALMO-TRANS)
+
+```
+Primary Yellow:  #FFD700  → Tailwind: yellow-400
+Background:      #1A1A1A  → inline style
+Card BG:         bg-gray-800/50, bg-gray-900/50
+Text:            white, gray-300, gray-400, gray-500
+Active border:   border-yellow-400
+Error:           red-400, red-500
+Success:         green-400, green-500
+Font:            Barlow Condensed (headings), Inter (body)
+```
+
+### Vehicle Configuration
+
+**Express Vehicles (10 options):**
+| ID | Name | Max Weight | Base Price | Price/km |
+|----|------|------------|------------|----------|
+| EXP-01 | Kleiner Transporter | 400kg | 250 zł | 3.50 zł |
+| EXP-02 | Mittlerer Transporter | 800kg | 300 zł | 3.75 zł |
+| EXP-03 | Großer Transporter | 1200kg | 400 zł | 4.50 zł |
+| EXP-04 | Hebebühne und Hubwagen | 800kg | 450 zł | 4.75 zł |
+| EXP-05-10 | Specialized vehicles | 1200kg | 500-700 zł | 5.15-6.75 zł |
+
+**LKW Vehicles (4 options):**
+| ID | Name | Max Weight | Pallets | Base Price | Price/km |
+|----|------|------------|---------|------------|----------|
+| LKW-01 | 3t Sendung | 3000kg | 14 | 450 zł | 5.25 zł |
+| LKW-02 | 5t Sendung | 5000kg | 14 | 520 zł | 6.05 zł |
+| LKW-03 | 12t Sendung | 12000kg | 18 | 620 zł | 7.35 zł |
+| LKW-04 | 24t Sendung | 24000kg | 33 | 750 zł | 8.70 zł |
+
+### Additional Services (Zusatzservices)
+
+| ID | Service | Price | Availability |
+|----|---------|-------|--------------|
+| SVC-01 | Beladehilfe durch Fahrer | +119 zł | Express |
+| SVC-02 | Entladehilfe durch Fahrer | +119 zł | Express |
+| SVC-03 | Neutrale Abholung/Zustellung | +499 zł | Express + LKW |
+| SVC-04 | Papierrechnung | +49.99 zł | Express + LKW |
+| SVC-05 | Beladung von oben | +399 zł | LKW |
+| SVC-06 | Hebebühne | +619 zł | LKW |
+
+### Time Window Surcharges
+
+| Window | Express | LKW |
+|--------|---------|-----|
+| 6 Stunden | Free | Free |
+| 3 Stunden | +413.82 zł | Free |
+| Fixzeit | +831.82 zł | Free |
+
+## Testing
+
+### Unit Tests
+
+```bash
+npm run test
+```
+
+Test files located in `src/__tests__/`:
+- `store.test.ts` — Zustand store actions
+- `api.test.ts` — API configuration validation
+
+### Development Workflow
+
+```bash
+# Dev server
+npm run dev
+
+# TypeScript check
+npx tsc --noEmit
+
+# Build test
+npm run build
+
+# Check in browser:
+# 1. http://localhost:5173 — Step 1 renders
+# 2. DevTools → Console — no errors
+# 3. DevTools → Network — API calls to localhost:5000
+```
 
 ## Project Structure Summary
 
 | Directory | Purpose |
 |-----------|---------|
-| `src/components/` | Wizard step components and PayPal button |
-| `src/store/` | Zustand calculator state management |
-| `src/services/` | External API clients (backend, Google Maps) |
-| `src/types/` | TypeScript interfaces |
-| `public/` | Static assets |
-| `screenshots/` | UI screenshots for documentation |
+| `src/components/wizard/` | 6-step wizard layout and steps |
+| `src/components/vehicles/` | Vehicle selection components |
+| `src/components/address/` | Address input with geocoding |
+| `src/components/services/` | Additional services panel |
+| `src/components/scheduling/` | Date and time window selection |
+| `src/components/ui/` | Reusable UI components |
+| `src/store/` | Zustand state management |
+| `src/services/` | API clients |
+| `src/types/` | TypeScript type definitions |
+| `src/__tests__/` | Unit tests |
 | `agents/` | AI agent configurations |
+| `.claude/agents/` | Claude-specific agent files |
 
 ## Important Notes
 
-- PayPal SDK is loaded dynamically in `App.tsx`
-- Google Maps Distance Matrix API used for route calculation
-- Geocoding routed through backend to avoid CORS issues
-- Form state persists across wizard steps via Zustand
-- Pricing includes weight tiers and service multipliers
+- **Entry Point**: `main.tsx` imports `AppV2.tsx` for v2 wizard
+- **Legacy**: Original 3-step wizard preserved in `App.tsx` and `components/legacy/`
+- **Geocoding**: Routed through backend to avoid CORS issues
+- **Pricing**: Dynamic calculation based on distance, vehicle, services, time windows
+- **Type Safety**: Strict TypeScript, no `any` types allowed
+- **Language**: UI labels in German, code comments in Polish
 
 ## Agent Files
 
-The `agents/` directory contains autonomous debugging and testing agents:
-
+### `/agents/` Directory
 | File | Purpose |
 |------|---------|
-| `palmo-frontend-debug-agent.md` | Auto-debugger agent with 8-phase execution (TypeScript, lint, dev server, build, tests, API integration, cross-repo analysis, auto-commit) |
-| `palmo-frontend-master-prompt-v1.txt` | Comprehensive master prompt for Qwen3-Coder model with full debugging workflow |
+| `palmo-frontend-debug-agent.md` | Auto-debugger with 8-phase execution |
+| `palmo-frontend-master-prompt-v1.txt` | Master prompt for debugging workflow |
+| `palmo-frontend-v2.md` | V2 development agent configuration |
+| `PROMPT-PHASE2-INTEGRATION.md` | Phase 2 integration instructions |
 
-### Agent Execution Phases
+### `/.claude/agents/` Directory
+| File | Purpose |
+|------|---------|
+| `palmo-frontend-v2.md` | Claude agent for v2 frontend development |
+| `PROMPT-PHASE2-INTEGRATION.md` | Step 1 integration workflow |
 
-1. **Phase 0: Pre-flight** — Environment setup, clone, npm install
-2. **Phase 1: Static Analysis** — TypeScript + ESLint checks
-3. **Phase 2: Dev Server** — Start and verify Vite dev server
-4. **Phase 3: Build Test** — Production build verification
-5. **Phase 4: Unit Tests** — Run/create test suite
-6. **Phase 5: API Integration** — Backend CORS and endpoint tests
-7. **Phase 6: Cross-repo Analysis** — Frontend/backend type sync
-8. **Phase 7: Auto-commit** — Atomic commits with push
-9. **Phase 8: Report** — Generate JSON/Markdown results
+## Related Repositories
 
-### Related Repositories
+- **Backend v2**: https://github.com/piotroq/palmo-trans-calculator-backend (port 5000)
+- **WordPress**: Local instance on port 8088
 
-- **Backend**: https://github.com/piotroq/palmo-trans-calculator-backend (port 5000)
-- **WordPress**: Local instance on port 8088 (VITE_WP_API_URL)
+## Development Status
 
-### Brand Guidelines
+### ✅ Completed (Phase 1 & V2 Foundation)
 
-- **Primary Color**: `#FFD700` (Gold/Yellow)
-- **Background**: `#1A1A1A` (Dark)
-- **Fonts**: Barlow Condensed, Inter
+- **3-step wizard v1** (Address → Details → Payment)
+- **6-step wizard v2 layout** with step indicator
+- **Step 1: Preis** fully implemented:
+  - Address inputs with country selector and geocoding
+  - Express/LKW vehicle category toggle
+  - Vehicle selector with expandable cards (10 Express + 4 LKW)
+  - Additional services panel
+  - Date selector
+  - Time window preview
+  - Dynamic price calculation
+  - Step navigation
+
+- **TypeScript types** for all 6 steps
+- **Zustand store v2** with sliced architecture
+- **API v2 client** with all endpoints
+- **Unit tests** (8 passing)
+- **Zero TypeScript errors**
+- **Zero ESLint errors**
+
+### 🔄 In Progress (Phase 2)
+
+- Step 2: Sendung (shipment form)
+- Step 3: Abholung (pickup details)
+- Step 4: Zustellung (delivery details)
+- Step 5: Rechnungsadresse (invoice data)
+- Step 6: Zahlung (payment + booking submission)
+
+### 📋 Planned
+
+- Backend integration for real-time pricing
+- Booking submission API
+- Payment method integration (PayPal, Przelewy24, Kreditkarte)
+- WordPress admin panel for booking management
+- E2E tests with Playwright
+
+## Quick Start Commands
+
+```bash
+# Clone and setup
+git clone https://github.com/piotroq/palmo-trans-calculator-frontend.git
+cd palmo-trans-calculator-frontend
+cp .env.example .env
+npm install
+
+# Start development server
+npm run dev
+
+# Run tests
+npm run test
+
+# Build for production
+npm run build
+
+# Lint codebase
+npm run lint
+
+# TypeScript check
+npx tsc --noEmit
+```
+
+## Debugging Resources
+
+- **Debug Report**: `debug-report.md` — Latest debugging session results
+- **Test Results**: `test-results.json` — Automated test execution logs
+- **Start Command**: `KOMENDA-STARTOWA-FRONTEND` — Quick start script
+- **Expansion Plan**: `PALMO-TRANS-Calculator-Expansion-Plan.md` — Full v2 roadmap
+
+## Price Calculation Formula
+
+```
+Final Price = Vehicle Base Price
+            + (Distance km × Price per km)
+            + Sum of Additional Services
+            + Pickup Time Window Surcharge
+            + Delivery Time Window Surcharge
+            + Payment Method Fee
+            + VAT (0% for B2B reverse charge)
+```
