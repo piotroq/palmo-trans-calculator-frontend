@@ -1,0 +1,941 @@
+================================================================================
+PALMO-TRANS CALCULATOR FRONTEND — QWEN3-CODER MASTER PROMPT v1.0
+================================================================================
+Model: Qwen3-Coder (max context, extended thinking enabled)
+Projekt: palmo-trans-calculator-frontend
+Repo: https://github.com/piotroq/palmo-trans-calculator-frontend
+Stack: React 18 + TypeScript + Vite + Zustand + Tailwind CSS
+Powiązany backend: https://github.com/piotroq/palmo-trans-calculator-backend
+Data: 2025
+
+================================================================================
+ROLA I MISJA
+================================================================================
+
+Jesteś autonomicznym senior full-stack debuggerem i testerem dla projektu
+PALMO-TRANS. Twoim zadaniem jest:
+
+1. Sklonować i zanalizować repozytorium frontendu
+2. Uruchomić npm run dev i naprawić WSZYSTKIE błędy blokujące start
+3. Przeanalizować strukturę + komunikację z backendem i WordPress
+4. Uruchomić pełny zestaw testów (TypeScript, lint, unit, E2E, build)
+5. Wykryć i naprawić błędy w kodzie
+6. Zcommitować każdą poprawkę atomowo z opisem
+7. Wygenerować raport końcowy z wynikami
+
+ZASADA: Działaj AUTONOMICZNIE. Nie pytaj o potwierdzenie przy standardowych
+naprawach. Iteruj aż wszystkie testy przejdą. Zapisuj każdą zmianę do pliku.
+
+================================================================================
+FAZA 0 — PRE-FLIGHT: ŚRODOWISKO I KLONOWANIE
+================================================================================
+
+## 0.1 — Sprawdź prerequisity
+
+```bash
+node --version          # wymagane >= 18.0.0
+npm --version           # wymagane >= 9.0.0
+git --version
+npx --version
+```
+
+Jeśli Node < 18:
+```bash
+# macOS/Linux via nvm:
+nvm install 18 && nvm use 18
+# lub: brew install node@18
+```
+
+## 0.2 — Klonowanie i setup
+
+```bash
+cd ~/Documents/GitHub/strony
+git clone https://github.com/piotroq/palmo-trans-calculator-frontend.git
+cd palmo-trans-calculator-frontend
+git status
+git log --oneline -10
+```
+
+## 0.3 — Zbadaj strukturę projektu
+
+```bash
+# Struktura katalogów
+find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.json" \) \
+  -not -path "*/node_modules/*" -not -path "*/.git/*" \
+  | sort | head -80
+
+# Kluczowe pliki
+cat package.json
+cat tsconfig.json 2>/dev/null || echo "BRAK tsconfig.json"
+cat vite.config.ts 2>/dev/null || cat vite.config.js 2>/dev/null || echo "BRAK vite.config"
+cat tailwind.config.ts 2>/dev/null || cat tailwind.config.js 2>/dev/null || echo "BRAK tailwind.config"
+cat .env 2>/dev/null || cat .env.local 2>/dev/null || echo "BRAK .env"
+cat .env.example 2>/dev/null || echo "BRAK .env.example"
+```
+
+## 0.4 — Zainstaluj zależności
+
+```bash
+npm install
+# Jeśli błędy peer dependencies:
+npm install --legacy-peer-deps
+```
+
+Zapisz do logu:
+```bash
+npm install 2>&1 | tee /tmp/palmo-frontend-npm-install.log
+cat /tmp/palmo-frontend-npm-install.log | grep -E "error|warn|vulnerabilit" | head -30
+```
+
+## 0.5 — Konfiguracja środowiska (.env)
+
+```bash
+# Sprawdź jakie zmienne są wymagane
+grep -r "import.meta.env\." src/ --include="*.ts" --include="*.tsx" | \
+  grep -oP 'VITE_[A-Z_]+' | sort -u
+```
+
+Oczekiwane zmienne (utwórz .env.local jeśli brak):
+```bash
+cat > .env.local << 'EOF'
+VITE_API_URL=http://localhost:5000/api
+VITE_GOOGLE_MAPS_API_KEY=YOUR_KEY_HERE
+VITE_PAYPAL_CLIENT_ID=YOUR_PAYPAL_CLIENT_ID
+VITE_WP_API_URL=http://localhost:8088
+VITE_APP_ENV=development
+EOF
+```
+
+Jeśli jest .env.example → skopiuj i uzupełnij:
+```bash
+cp .env.example .env.local
+```
+
+================================================================================
+FAZA 1 — ANALIZA STATYCZNA: TYPESCRIPT I LINT
+================================================================================
+
+## 1.1 — TypeScript compilation check
+
+```bash
+npx tsc --noEmit 2>&1 | tee /tmp/palmo-tsc-frontend.txt
+TSC_ERRORS=$(cat /tmp/palmo-tsc-frontend.txt | grep "error TS" | wc -l)
+echo "TypeScript errors: $TSC_ERRORS"
+cat /tmp/palmo-tsc-frontend.txt
+```
+
+Typowe błędy i naprawy:
+
+**A) Brakujące typy dla env variables:**
+```typescript
+// src/vite-env.d.ts lub src/env.d.ts
+/// <reference types="vite/client" />
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string;
+  readonly VITE_GOOGLE_MAPS_API_KEY: string;
+  readonly VITE_PAYPAL_CLIENT_ID: string;
+  readonly VITE_WP_API_URL: string;
+  readonly VITE_APP_ENV: string;
+}
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+```
+
+**B) Implicit any errors:**
+```typescript
+// Zlokalizuj:
+grep -r ": any" src/ --include="*.ts" --include="*.tsx" | head -20
+// Zamień na właściwy typ lub unknown
+```
+
+**C) Strict null checks:**
+```typescript
+// element?.property zamiast element!.property
+// Lub dodaj null guard: if (!element) return;
+```
+
+## 1.2 — ESLint
+
+```bash
+# Sprawdź czy jest skonfigurowany
+cat .eslintrc.* 2>/dev/null || cat eslint.config.* 2>/dev/null || echo "BRAK ESLint config"
+
+# Uruchom
+npx eslint src/ --ext .ts,.tsx 2>&1 | tee /tmp/palmo-eslint-frontend.txt
+ESLINT_ERRORS=$(cat /tmp/palmo-eslint-frontend.txt | grep "error" | wc -l)
+echo "ESLint errors: $ESLINT_ERRORS"
+
+# Auto-fix
+npx eslint src/ --ext .ts,.tsx --fix
+```
+
+## 1.3 — Analiza importów i zależności
+
+```bash
+# Sprawdź nieużywane importy
+npx ts-unused-exports tsconfig.json 2>/dev/null || echo "ts-unused-exports nie zainstalowany"
+
+# Sprawdź brakujące moduły
+cat /tmp/palmo-tsc-frontend.txt | grep "Cannot find module" | sort -u
+
+# Znajdź hardcoded URL-e (problem z CORS/produkcją)
+grep -rn "http://localhost\|http://127.0.0.1\|hardcoded" src/ \
+  --include="*.ts" --include="*.tsx" | grep -v "node_modules"
+```
+
+================================================================================
+FAZA 2 — URUCHOMIENIE: npm run dev
+================================================================================
+
+## 2.1 — Start dev server
+
+```bash
+# Uruchom w tle i zapisz logi
+npm run dev > /tmp/palmo-frontend-dev.log 2>&1 &
+FRONTEND_PID=$!
+echo "FRONTEND_PID=$FRONTEND_PID" >> /tmp/palmo-frontend-state.env
+echo "Dev server PID: $FRONTEND_PID"
+
+# Czekaj na start (Vite uruchamia się zazwyczaj <3s)
+sleep 4
+cat /tmp/palmo-frontend-dev.log
+```
+
+## 2.2 — Weryfikacja dostępności
+
+```bash
+# Sprawdź domyślny port Vite (5173)
+curl -s -o /dev/null -w "HTTP_STATUS:%{http_code}" http://localhost:5173/
+echo ""
+curl -s http://localhost:5173/ | head -30
+
+# Sprawdź alternatywne porty jeśli 5173 zajęty
+for port in 5173 5174 5175 3000 3001; do
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$port/ 2>/dev/null)
+  echo "Port $port: HTTP $STATUS"
+done
+```
+
+## 2.3 — Typowe błędy startowe i naprawy
+
+**Problem: Port already in use**
+```bash
+lsof -ti :5173 | xargs kill -9 2>/dev/null
+# Lub zmień port w vite.config.ts:
+# server: { port: 5174, strictPort: false }
+```
+
+**Problem: ENOENT .env / cannot find module**
+```bash
+# Sprawdź czy .env.local istnieje
+ls -la .env* 2>/dev/null
+# Utwórz jeśli brak (patrz FAZA 0.5)
+```
+
+**Problem: Vite nie zainstalowany**
+```bash
+npm install vite @vitejs/plugin-react --save-dev
+```
+
+**Problem: tailwind not found / CSS errors**
+```bash
+npm install tailwindcss autoprefixer postcss --save-dev
+npx tailwindcss init -p
+```
+
+**Problem: Module not found: zustand**
+```bash
+npm install zustand
+```
+
+## 2.4 — Logi przeglądarki (headless check)
+
+```bash
+# Jeśli jest playwright/puppeteer zainstalowany:
+npx playwright install chromium 2>/dev/null
+
+cat > /tmp/palmo-browser-check.mjs << 'EOF'
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage();
+const errors = [];
+page.on('console', msg => {
+  if (msg.type() === 'error') errors.push(msg.text());
+});
+page.on('pageerror', err => errors.push(err.message));
+await page.goto('http://localhost:5173/', { waitUntil: 'networkidle', timeout: 15000 });
+await page.waitForTimeout(3000);
+console.log('=== BROWSER CONSOLE ERRORS ===');
+errors.forEach((e, i) => console.log(`[${i+1}] ${e}`));
+console.log(`Total errors: ${errors.length}`);
+await browser.close();
+EOF
+
+node /tmp/palmo-browser-check.mjs 2>&1 | tee /tmp/palmo-browser-errors.txt
+```
+
+================================================================================
+FAZA 3 — TESTY FUNKCJONALNE: WIZARD & API
+================================================================================
+
+## 3.1 — Analiza architektury aplikacji
+
+```bash
+# Zbadaj store Zustand
+find src -name "*.store.*" -o -name "*Store*" -o -name "*store*" 2>/dev/null
+find src -name "*.slice.*" -o -name "*Slice*" 2>/dev/null
+
+# Zbadaj API client
+find src -name "api*" -o -name "*api*" -o -name "*service*" 2>/dev/null | \
+  grep -v node_modules | grep -E "\.(ts|tsx)$"
+
+# Zbadaj routing
+grep -r "Route\|useNavigate\|useLocation\|BrowserRouter" src/ \
+  --include="*.tsx" -l | head -10
+
+# Zbadaj komponenty Step/Wizard
+find src -name "*Step*" -o -name "*Wizard*" -o -name "*step*" | \
+  grep -v node_modules | grep -E "\.(ts|tsx)$"
+```
+
+## 3.2 — Sprawdź komunikację z backendem
+
+```bash
+# Znajdź wszystkie wywołania API
+grep -rn "fetch\|axios\|apiUrl\|VITE_API_URL\|/api/" src/ \
+  --include="*.ts" --include="*.tsx" | grep -v "node_modules"
+
+# Sprawdź czy backend działa (uruchom jeśli nie)
+curl -s http://localhost:5000/api/health 2>/dev/null || echo "❌ Backend nie odpowiada na :5000"
+curl -s http://localhost:5000/api/health | python3 -m json.tool 2>/dev/null
+```
+
+Jeśli backend nie działa:
+```bash
+# Uruchom backend w osobnym terminalu
+cd ~/Documents/GitHub/strony/palmo-trans-calculator-backend
+npm run dev &
+BACKEND_PID=$!
+echo "BACKEND_PID=$BACKEND_PID" >> /tmp/palmo-frontend-state.env
+sleep 3
+```
+
+## 3.3 — Test CORS frontend → backend
+
+```bash
+# Symuluj request z frontendu do backendu
+curl -v \
+  -H "Origin: http://localhost:5173" \
+  -H "Content-Type: application/json" \
+  http://localhost:5000/api/health 2>&1 | grep -E "< Access-Control|< HTTP|error"
+
+# Oczekiwane: Access-Control-Allow-Origin: http://localhost:5173
+```
+
+Jeśli CORS error → backend musi mieć localhost:5173 w whitelist:
+```typescript
+// backend/src/index.ts — dodaj do whitelist:
+const whitelist = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  process.env.FRONTEND_URL,
+  'https://app.palmo-trans.com'
+];
+```
+
+## 3.4 — Test Google Maps API
+
+```bash
+# Sprawdź czy VITE_GOOGLE_MAPS_API_KEY jest ustawiony
+grep "GOOGLE_MAPS" .env.local 2>/dev/null || grep "GOOGLE_MAPS" .env 2>/dev/null
+
+# Sprawdź jak jest używany w kodzie
+grep -rn "Maps\|geocod\|google\|GOOGLE" src/ --include="*.ts" --include="*.tsx" | \
+  grep -v "node_modules" | head -20
+```
+
+Typowy problem — Maps ładowany client-side powoduje CORS:
+```typescript
+// ZŁE — wywołanie bezpośrednio z frontendu do Google API
+const geocode = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${addr}&key=${apiKey}`);
+
+// DOBRE — proxy przez backend
+const geocode = await fetch(`${import.meta.env.VITE_API_URL}/geocode?address=${addr}`);
+```
+
+## 3.5 — Test formularza (3 kroki wizarda)
+
+```bash
+# Jeśli playwright dostępny — E2E test wizarda
+cat > /tmp/palmo-e2e-wizard.mjs << 'EOF'
+import { chromium } from 'playwright';
+
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage();
+const errors = [];
+page.on('pageerror', e => errors.push(e.message));
+page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+
+try {
+  console.log('🔵 Otwieram aplikację...');
+  await page.goto('http://localhost:5173/', { timeout: 15000 });
+  await page.screenshot({ path: '/tmp/palmo-step0.png' });
+  console.log('✅ Strona załadowana');
+
+  // KROK 1 — dane adresowe
+  console.log('🔵 Szukam pól adresowych...');
+  const inputs = await page.locator('input').all();
+  console.log(`   Znaleziono ${inputs.length} pól input`);
+
+  // Próba wypełnienia adresów
+  const fromInput = page.locator('input[name*="from"], input[placeholder*="od"], input[placeholder*="From"], input[placeholder*="Skąd"]').first();
+  if (await fromInput.count() > 0) {
+    await fromInput.fill('Berlin, Deutschland');
+    console.log('✅ Wypełniono adres nadania');
+  }
+
+  const toInput = page.locator('input[name*="to"], input[placeholder*="do"], input[placeholder*="To"], input[placeholder*="Dokąd"]').first();
+  if (await toInput.count() > 0) {
+    await toInput.fill('Warsaw, Poland');
+    console.log('✅ Wypełniono adres dostawy');
+  }
+
+  await page.screenshot({ path: '/tmp/palmo-step1.png' });
+
+  // Przejście do kroku 2
+  const nextBtn = page.locator('button:has-text("Dalej"), button:has-text("Next"), button:has-text("Weiter"), button[type="submit"]').first();
+  if (await nextBtn.count() > 0) {
+    await nextBtn.click();
+    await page.waitForTimeout(2000);
+    console.log('✅ Kliknięto Next (krok 2)');
+    await page.screenshot({ path: '/tmp/palmo-step2.png' });
+  }
+
+} catch (e) {
+  console.error('❌ E2E Error:', e.message);
+}
+
+console.log('\n=== BŁĘDY KONSOLI ===');
+errors.forEach(e => console.log(' -', e));
+console.log(`Screenshots zapisane do /tmp/palmo-step*.png`);
+await browser.close();
+EOF
+
+node /tmp/palmo-e2e-wizard.mjs 2>&1 | tee /tmp/palmo-e2e-results.txt
+```
+
+================================================================================
+FAZA 4 — TESTY BUILDOWE I WYDAJNOŚCIOWE
+================================================================================
+
+## 4.1 — Production build
+
+```bash
+npm run build 2>&1 | tee /tmp/palmo-build.log
+BUILD_STATUS=$?
+echo "Build exit code: $BUILD_STATUS"
+
+if [ $BUILD_STATUS -eq 0 ]; then
+  echo "✅ Build succeeded"
+  ls -lh dist/ 2>/dev/null
+  du -sh dist/ 2>/dev/null
+else
+  echo "❌ Build FAILED"
+  cat /tmp/palmo-build.log | tail -30
+fi
+```
+
+## 4.2 — Bundle size analiza
+
+```bash
+# Sprawdź rozmiar bundla
+ls -lh dist/assets/*.js 2>/dev/null | sort -k5 -h -r | head -10
+
+# Jeśli rollup-plugin-visualizer zainstalowany
+grep "visualizer\|bundle-analyzer" package.json
+
+# Zainstaluj i użyj jeśli brak
+npm install --save-dev rollup-plugin-visualizer 2>/dev/null
+
+# Sprawdź czy są chunks code-splitting
+ls dist/assets/ 2>/dev/null | wc -l
+```
+
+Typowe problemy z rozmiarem:
+- Google Maps załadowany bez lazy loading
+- PayPal SDK bez dynamic import
+- Brak code splitting dla kroków wizarda
+
+## 4.3 — Preview production build
+
+```bash
+npm run preview > /tmp/palmo-preview.log 2>&1 &
+PREVIEW_PID=$!
+sleep 3
+curl -s -o /dev/null -w "Preview HTTP: %{http_code}\n" http://localhost:4173/
+kill $PREVIEW_PID 2>/dev/null
+```
+
+## 4.4 — Lighthouse (jeśli dostępny)
+
+```bash
+npx lighthouse http://localhost:5173/ \
+  --output json \
+  --output-path /tmp/palmo-lighthouse.json \
+  --chrome-flags="--headless" \
+  --only-categories=performance,accessibility,best-practices 2>/dev/null
+
+if [ -f /tmp/palmo-lighthouse.json ]; then
+  python3 -c "
+import json
+with open('/tmp/palmo-lighthouse.json') as f:
+  data = json.load(f)
+cats = data.get('categories', {})
+for k, v in cats.items():
+  print(f'{k}: {int(v[\"score\"]*100)}/100')
+"
+fi
+```
+
+================================================================================
+FAZA 5 — TESTY JEDNOSTKOWE (VITEST / JEST)
+================================================================================
+
+## 5.1 — Sprawdź konfigurację testów
+
+```bash
+# Sprawdź framework testowy
+grep -E '"vitest|"jest|@testing-library' package.json
+
+# Znajdź istniejące testy
+find src -name "*.test.*" -o -name "*.spec.*" | grep -v node_modules
+
+# Sprawdź czy jest konfiguracja
+cat vitest.config.ts 2>/dev/null || cat jest.config.* 2>/dev/null
+```
+
+## 5.2 — Uruchom istniejące testy
+
+```bash
+npm test -- --run 2>&1 | tee /tmp/palmo-tests.log
+# lub
+npx vitest run 2>&1 | tee /tmp/palmo-vitest.log
+
+TEST_STATUS=$?
+echo "Tests exit code: $TEST_STATUS"
+```
+
+## 5.3 — Utwórz testy jeśli brak
+
+Jeśli nie ma żadnych testów, utwórz podstawowe:
+
+```bash
+cat > src/__tests__/store.test.ts << 'EOF'
+import { describe, it, expect, beforeEach } from 'vitest';
+// Dostosuj import do rzeczywistej nazwy store
+// import { useCalculatorStore } from '../store/calculatorStore';
+
+describe('Calculator Store', () => {
+  it('should initialize with default values', () => {
+    expect(true).toBe(true); // placeholder — dostosuj do rzeczywistego store
+  });
+});
+EOF
+
+cat > src/__tests__/api.test.ts << 'EOF'
+import { describe, it, expect, vi } from 'vitest';
+
+describe('API Service', () => {
+  it('should build correct API URL', () => {
+    const baseUrl = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api';
+    expect(baseUrl).toBeTruthy();
+    expect(baseUrl).toContain('/api');
+  });
+});
+EOF
+```
+
+================================================================================
+FAZA 6 — ANALIZA REPOZYTORIÓW I KOMUNIKACJI
+================================================================================
+
+## 6.1 — Sklonuj i zbadaj backend
+
+```bash
+cd ~/Documents/GitHub/strony
+
+# Backend
+if [ ! -d "palmo-trans-calculator-backend" ]; then
+  git clone https://github.com/piotroq/palmo-trans-calculator-backend.git
+fi
+
+# WordPress plugin (jeśli istnieje w powiązanych repo)
+# Zbadaj wszystkie repo piotroq związane z palmo
+```
+
+## 6.2 — Mapowanie komunikacji
+
+```bash
+# Frontend → Backend endpoints
+echo "=== FRONTEND używa tych endpointów ==="
+grep -rn "fetch\|axios\|\.get\|\.post\|/api/" \
+  ~/Documents/GitHub/strony/palmo-trans-calculator-frontend/src/ \
+  --include="*.ts" --include="*.tsx" 2>/dev/null | \
+  grep -oP "'/api/[^'\"]+'" | sort -u
+
+echo ""
+echo "=== BACKEND udostępnia te endpointy ==="
+grep -rn "router\.\(get\|post\|put\|delete\)\|app\.\(get\|post\)" \
+  ~/Documents/GitHub/strony/palmo-trans-calculator-backend/src/ \
+  --include="*.ts" 2>/dev/null | \
+  grep -oP "'(/api)?/[^'\"]+'" | sort -u
+```
+
+## 6.3 — Sprawdź spójność typów (DTO)
+
+```bash
+# Typy żądań/odpowiedzi w frontendzie
+grep -rn "interface.*Request\|interface.*Response\|type.*DTO" \
+  ~/Documents/GitHub/strony/palmo-trans-calculator-frontend/src/ \
+  --include="*.ts" | head -20
+
+# Typy w backendzie
+grep -rn "interface.*Request\|interface.*Response\|type.*DTO" \
+  ~/Documents/GitHub/strony/palmo-trans-calculator-backend/src/ \
+  --include="*.ts" | head -20
+```
+
+Jeśli typy są zduplikowane — utwórz shared types package lub skopiuj do `src/types/api.ts`.
+
+## 6.4 — Sprawdź wersje API
+
+```bash
+# Frontend oczekuje jakich pól w odpowiedzi?
+grep -rn "\.id\|\.referenceNumber\|\.status\|\.price\|\.distance" \
+  ~/Documents/GitHub/strony/palmo-trans-calculator-frontend/src/ \
+  --include="*.ts" --include="*.tsx" | grep -v "//\|node_modules" | head -20
+
+# Backend zwraca jakie pola?
+grep -rn "res\.json\|res\.send\|return {" \
+  ~/Documents/GitHub/strony/palmo-trans-calculator-backend/src/ \
+  --include="*.ts" | head -20
+```
+
+================================================================================
+FAZA 7 — AUTO-DIAGNOZA I NAPRAWY
+================================================================================
+
+## Decision Tree — uruchom w kolejności:
+
+### Problem: Vite nie startuje
+```bash
+# 1. Sprawdź logi
+cat /tmp/palmo-frontend-dev.log
+# 2. Sprawdź package.json scripts
+cat package.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('scripts',{}))"
+# 3. Zainstaluj brakujące devDependencies
+npm install --save-dev vite @vitejs/plugin-react typescript
+```
+
+### Problem: TypeScript errors > 0
+```bash
+cat /tmp/palmo-tsc-frontend.txt | grep "error TS" | \
+  awk -F'(' '{print $1}' | sort -u | head -20
+# Napraw po kolei, plik po pliku
+```
+
+### Problem: CORS error w przeglądarce
+```bash
+# Frontend próbuje wywołać backend z origin localhost:5173
+# Sprawdź backend CORS config
+grep -n "cors\|CORS\|Origin" \
+  ~/Documents/GitHub/strony/palmo-trans-calculator-backend/src/index.ts 2>/dev/null
+# Dodaj localhost:5173 do whitelist (patrz FIX A)
+```
+
+### Problem: Google Maps API error
+```bash
+# Sprawdź czy klucz jest ustawiony
+echo "Maps key set: $([ -n "$VITE_GOOGLE_MAPS_API_KEY" ] && echo YES || echo NO)"
+# Sprawdź czy restrykcje klucza w Google Console pozwalają na localhost
+# Przenieś geocoding do backendu (patrz FIX B)
+```
+
+### Problem: PayPal SDK error
+```bash
+grep -rn "PayPal\|paypal\|PAYPAL" src/ --include="*.ts" --include="*.tsx"
+# Sprawdź czy VITE_PAYPAL_CLIENT_ID jest ustawiony
+# Sprawdź tryb (sandbox vs live) w .env.local
+```
+
+### Problem: React rendering error / white screen
+```bash
+# Sprawdź Error Boundary
+grep -rn "ErrorBoundary\|componentDidCatch" src/ --include="*.tsx"
+# Dodaj Error Boundary do App.tsx jeśli brak
+```
+
+## FIX A — CORS na frontendzie (vite proxy)
+
+Jeśli backend nie może być zmieniony, dodaj proxy w Vite:
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/geocode': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+    },
+  },
+});
+```
+
+Wtedy w frontendzie używaj:
+```typescript
+const API_URL = import.meta.env.VITE_API_URL || '/api';
+// Zamiast: 'http://localhost:5000/api'
+```
+
+## FIX B — Google Maps przez backend proxy
+
+```typescript
+// src/services/geocoding.ts
+export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number }> {
+  // DOBRE: proxy przez backend (brak CORS problemu)
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/geocode`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ address }),
+  });
+  if (!response.ok) {
+    throw new Error(`Geocoding failed: ${response.statusText}`);
+  }
+  return response.json();
+}
+```
+
+## FIX C — Error Boundary dla React
+
+```typescript
+// src/components/ErrorBoundary.tsx
+import React, { Component, ReactNode } from 'react';
+
+interface Props { children: ReactNode; fallback?: ReactNode; }
+interface State { hasError: boolean; error?: Error; }
+
+export class ErrorBoundary extends Component<Props, State> {
+  state: State = { hasError: false };
+
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[ErrorBoundary]', error, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback ?? (
+        <div className="flex items-center justify-center min-h-screen bg-black text-yellow-400 p-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold mb-4">Wystąpił błąd aplikacji</h2>
+            <p className="text-sm opacity-70 mb-4">{this.state.error?.message}</p>
+            <button
+              onClick={() => this.setState({ hasError: false })}
+              className="bg-yellow-400 text-black px-6 py-2 font-semibold hover:bg-yellow-300"
+            >
+              Spróbuj ponownie
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+```
+
+## FIX D — Poprawny API client z obsługą błędów
+
+```typescript
+// src/services/apiClient.ts
+const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
+
+class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({ message: response.statusText }));
+    throw new ApiError(response.status, body.message ?? response.statusText);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export const api = {
+  get: <T>(path: string) => apiFetch<T>(path),
+  post: <T>(path: string, body: unknown) =>
+    apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+};
+```
+
+## FIX E — PayPal integracja
+
+```typescript
+// src/components/PaymentStep.tsx
+import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
+
+export function PaymentStep({ amount, onSuccess }: {
+  amount: number;
+  onSuccess: (orderId: string) => void;
+}) {
+  return (
+    <PayPalScriptProvider options={{
+      clientId: import.meta.env.VITE_PAYPAL_CLIENT_ID,
+      currency: 'EUR',
+    }}>
+      <PayPalButtons
+        style={{ layout: 'vertical', color: 'gold' }}
+        createOrder={async () => {
+          const res = await fetch(`${import.meta.env.VITE_API_URL}/payments/create-order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount }),
+          });
+          const data = await res.json();
+          return data.orderId;
+        }}
+        onApprove={async (data) => {
+          await fetch(`${import.meta.env.VITE_API_URL}/payments/capture-order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: data.orderID }),
+          });
+          onSuccess(data.orderID);
+        }}
+      />
+    </PayPalScriptProvider>
+  );
+}
+```
+
+================================================================================
+FAZA 8 — COMMIT I RAPORT
+================================================================================
+
+## 8.1 — Commituj każdą naprawę atomowo
+
+```bash
+cd ~/Documents/GitHub/strony/palmo-trans-calculator-frontend
+
+# Sprawdź zmiany
+git diff --stat
+
+# Przykłady atomowych commitów:
+git add vite.config.ts && git commit -m "fix(vite): add proxy config for backend API and Maps endpoints"
+git add src/vite-env.d.ts && git commit -m "fix(types): add ImportMetaEnv interface for VITE_ variables"
+git add src/components/ErrorBoundary.tsx && git commit -m "feat(ui): add ErrorBoundary component with PALMO brand fallback"
+git add src/services/apiClient.ts && git commit -m "feat(api): add typed API client with error handling"
+git add src/services/geocoding.ts && git commit -m "fix(maps): move geocoding to backend proxy (resolves CORS)"
+git add .env.local && git commit -m "chore(env): add .env.local template for local development" 2>/dev/null || \
+  echo ".env.local pominięty (dodaj do .gitignore)"
+
+# Dodaj .env.local do .gitignore jeśli nie ma
+echo ".env.local" >> .gitignore
+echo ".env*.local" >> .gitignore
+```
+
+## 8.2 — Push na GitHub
+
+```bash
+git push origin main 2>&1 || git push origin master 2>&1
+```
+
+## 8.3 — Generuj raport końcowy
+
+```bash
+cat > /tmp/palmo-frontend-report.md << REPORT
+# PALMO-TRANS Frontend — Raport debugowania
+Data: $(date +"%Y-%m-%d %H:%M")
+
+## Status testów
+
+| Test | Status | Szczegóły |
+|------|--------|-----------|
+| TypeScript compile | $([ $(cat /tmp/palmo-tsc-frontend.txt 2>/dev/null | grep "error TS" | wc -l) -eq 0 ] && echo "✅ PASS" || echo "❌ FAIL") | $(cat /tmp/palmo-tsc-frontend.txt 2>/dev/null | grep "error TS" | wc -l) errors |
+| npm run dev | $(curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/ 2>/dev/null | grep -q "200" && echo "✅ PASS" || echo "❌ FAIL") | HTTP $(curl -s -o /dev/null -w "%{http_code}" http://localhost:5173/ 2>/dev/null) |
+| Production build | $([ -d dist ] && echo "✅ PASS" || echo "❌ FAIL") | $([ -d dist ] && du -sh dist/ 2>/dev/null | cut -f1 || echo "N/A") |
+| CORS frontend→backend | $(curl -s -H "Origin: http://localhost:5173" http://localhost:5000/api/health 2>/dev/null | grep -q "{" && echo "✅ PASS" || echo "⚠️  SKIP") | Backend status |
+| E2E Wizard | $([ -f /tmp/palmo-e2e-results.txt ] && grep -q "✅" /tmp/palmo-e2e-results.txt && echo "✅ PASS" || echo "⚠️  SKIP") | - |
+
+## Znalezione i naprawione błędy
+
+$(cat /tmp/palmo-tsc-frontend.txt 2>/dev/null | grep "error TS" | head -10 || echo "Brak błędów TypeScript")
+
+## Zmiany wprowadzone do kodu
+
+$(cd ~/Documents/GitHub/strony/palmo-trans-calculator-frontend && git log --oneline -10 2>/dev/null || echo "Brak zmian")
+
+## Rekomendacje
+
+1. Dodaj shared-types package między frontend/backend
+2. Skonfiguruj GitHub Actions dla CI (tsc + build + tests)
+3. Przenieś geocoding na backend (eliminacja CORS)
+4. Dodaj loading states dla wszystkich API calls
+5. Implementuj retry logic (exponential backoff) dla API
+
+## Następne kroki
+
+- [ ] Testy E2E dla pełnego przepływu (krok 1→2→3→płatność)
+- [ ] Storybook dla komponentów UI
+- [ ] Error monitoring (Sentry)
+REPORT
+
+cat /tmp/palmo-frontend-report.md
+echo ""
+echo "📄 Raport zapisany: /tmp/palmo-frontend-report.md"
+```
+
+================================================================================
+KRYTERIA SUKCESU
+================================================================================
+
+✅ npm install — zero błędów krytycznych
+✅ TypeScript: npx tsc --noEmit — 0 errors
+✅ ESLint: 0 errors (warnings dopuszczalne)
+✅ npm run dev — aplikacja dostępna na http://localhost:5173/
+✅ Strona ładuje się bez błędów w konsoli przeglądarki
+✅ npm run build — build succeed, dist/ wygenerowany
+✅ CORS: frontend ↔ backend komunikuje się poprawnie
+✅ .env.local poprawnie skonfigurowany
+✅ ErrorBoundary zainstalowany
+✅ API client z obsługą błędów
+✅ Git: wszystkie poprawki scommitowane i spushowane
+
+================================================================================
+KONIEC MASTER PROMPT v1.0
+================================================================================
