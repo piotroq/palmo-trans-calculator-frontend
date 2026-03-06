@@ -1,9 +1,5 @@
 /**
- * WizardLayout FINAL — Wszystkie 6 kroków aktywne
- *
- * Step 1: pełna szerokość
- * Steps 2-5: content + Übersicht sidebar
- * Step 6: content (review) + PaymentPanel sidebar
+ * WizardLayout FINAL — 6 kroków + booking callback
  */
 
 import { useCalculatorStoreV2 } from '../../store/calculatorStoreV2';
@@ -15,8 +11,13 @@ import { StepZustellung } from './steps/StepZustellung';
 import { StepRechnung } from './steps/StepRechnung';
 import { StepZahlung, PaymentPanel } from './steps/StepZahlung';
 import { WizardSidebar } from './WizardSidebar';
+import type { BookingConfirmation } from '../../services/bookingService';
 
-export const WizardLayout = () => {
+interface WizardLayoutProps {
+  onBookingSuccess: (data: BookingConfirmation) => void;
+}
+
+export const WizardLayout = ({ onBookingSuccess }: WizardLayoutProps) => {
   const { currentStep, completedSteps, setStep, canNavigateTo } = useCalculatorStoreV2();
 
   const showSidebar = currentStep >= 2;
@@ -74,19 +75,21 @@ export const WizardLayout = () => {
         {showSidebar ? (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr,340px] gap-6">
             <div className="bg-gray-900/50 rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-800">
-              <StepContent step={currentStep} />
+              <StepContent step={currentStep} onBookingSuccess={onBookingSuccess} />
             </div>
             <div className="hidden lg:block">
-              {currentStep === 6 ? <PaymentPanel /> : <WizardSidebar />}
+              {currentStep === 6
+                ? <PaymentPanel onBookingSuccess={onBookingSuccess} />
+                : <WizardSidebar />
+              }
             </div>
           </div>
         ) : (
           <div className="bg-gray-900/50 rounded-2xl shadow-2xl p-6 md:p-8 border border-gray-800">
-            <StepContent step={currentStep} />
+            <StepContent step={currentStep} onBookingSuccess={onBookingSuccess} />
           </div>
         )}
 
-        {/* ── Footer ── */}
         <div className="mt-8 text-center text-xs text-gray-600 space-y-1">
           <p>PALMO-TRANS GmbH | Express & Sondertransporte</p>
           <p>* 0% USt. für Kunden außerhalb von Deutschland (Reverse Charge), nur für gewerbliche Kunden (USt.-ID notwendig)</p>
@@ -96,14 +99,14 @@ export const WizardLayout = () => {
   );
 };
 
-const StepContent = ({ step }: { step: number }) => {
+const StepContent = ({ step, onBookingSuccess }: { step: number; onBookingSuccess: (data: BookingConfirmation) => void }) => {
   switch (step) {
     case 1: return <StepPreis />;
     case 2: return <StepSendung />;
     case 3: return <StepAbholung />;
     case 4: return <StepZustellung />;
     case 5: return <StepRechnung />;
-    case 6: return <StepZahlung />;
+    case 6: return <StepZahlung onBookingSuccess={onBookingSuccess} />;
     default: return null;
   }
 };
